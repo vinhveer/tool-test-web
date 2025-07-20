@@ -90,17 +90,29 @@ const analyzeWebsitesWithBrowser = async (url1, url2, browser, reportFolder) => 
     const reportFolder = createReportFolder();
     console.log(`📁 Tạo thư mục: ${reportFolder}`);
     
-    // Khởi động browser một lần duy nhất
+    // Khởi động browser một lần duy nhất với config tối ưu
     console.log('🚀 Khởi động browser...');
     browser = await puppeteer.launch({
       executablePath: 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
       headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-web-security',
+        '--disable-features=VizDisplayCompositor',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding'
+      ]
     });
     
-    // Xử lý từng slug
+    // Xử lý từng slug với thông tin tiến độ
+    const startTime = Date.now();
     for (let i = 0; i < config.slugs.length; i++) {
       const slug = config.slugs[i];
+      const slugStartTime = Date.now();
+      
       console.log(`\n🔄 Xử lý slug ${i + 1}/${config.slugs.length}: ${slug}`);
       
       const url1 = config.siteLive + slug;
@@ -117,6 +129,14 @@ const analyzeWebsitesWithBrowser = async (url1, url2, browser, reportFolder) => 
         const fileName = `html_report_${safeSlug}.html`;
         
         saveHTMLReportWithName(results, reportFolder, fileName);
+        
+        // Thống kê thời gian
+        const slugTime = ((Date.now() - slugStartTime) / 1000).toFixed(1);
+        const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+        const avgTime = (totalTime / (i + 1)).toFixed(1);
+        const estimated = ((config.slugs.length - i - 1) * avgTime).toFixed(1);
+        
+        console.log(`  ⏱️  Slug time: ${slugTime}s | Total: ${totalTime}s | ETA: ${estimated}s`);
         
       } catch (error) {
         console.error(`❌ Lỗi khi xử lý slug ${slug}:`, error.message);
