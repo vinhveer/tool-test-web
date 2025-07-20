@@ -4,7 +4,7 @@ const { saveHTMLReport } = require('./reporter');
 (async () => {
   try {
     const url1 = 'https://www.nybgplasticsurgery.com';
-    const url2 = 'https://www.nybgplasticsurgery.com';
+    const url2 = 'http://plasticsurgery-06-2025.local';
     
     const results = await analyzeWebsites(url1, url2);
     

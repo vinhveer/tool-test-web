@@ -1,9 +1,11 @@
 {
   "dependencies": {
     "diff": "^8.0.2",
+    "js-beautify": "^1.15.4",
     "puppeteer": "^24.14.0",
     "puppeteer-core": "^24.14.0",
     "sharp": "^0.34.3",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "xlsx": "^0.18.5"
   }
 }

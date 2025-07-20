@@ -1,3 +1,44 @@
+const { diffLines, diffWordsWithSpace } = require('diff');
+const beautify = require('js-beautify').html;
+
+// Hàm format HTML từ compare.js
+function formatHTML(html) {
+  return beautify(html, {
+    indent_size: 2,
+    indent_char: ' ',
+    max_preserve_newlines: 1,
+    preserve_newlines: true,
+    keep_array_indentation: false,
+    break_chained_methods: false,
+    indent_scripts: 'keep',
+    brace_style: 'collapse',
+    space_before_conditional: true,
+    unescape_strings: false,
+    jslint_happy: false,
+    end_with_newline: false,
+    wrap_line_length: 0,
+    indent_inner_html: true,
+    comma_first: false,
+    e4x: false,
+    indent_empty_lines: false
+  });
+}
+
+// Hàm so sánh HTML content
+function compareHTMLBlocks(htmlA, htmlB) {
+  if (!htmlA || !htmlB) return null;
+  
+  const formattedA = formatHTML(htmlA);
+  const formattedB = formatHTML(htmlB);
+  
+  if (formattedA === formattedB) {
+    return { status: 'identical', htmlA: formattedA, htmlB: formattedB };
+  }
+  
+  const diff = diffWordsWithSpace(formattedA, formattedB);
+  return { status: 'different', htmlA: formattedA, htmlB: formattedB, diff };
+}
+
 const analyzeAndCompareBlocks = (site1, site2) => {
   const allBlocks = [];
   
@@ -27,7 +68,12 @@ const analyzeAndCompareBlocks = (site1, site2) => {
     if (block1 && block2) {
       // Cả 2 site đều có block ở index này
       if (block1.className === block2.className) {
-        // Cùng class name -> Merge
+        // Cùng class name -> Merge và so sánh HTML
+        const htmlComparison = compareHTMLBlocks(
+          block1.data.htmlContent, 
+          block2.data.htmlContent
+        );
+        
         allBlocks.push({
           id: `merged-${allBlocks.length + 1}`,
           displayIndex: allBlocks.length + 1,
@@ -39,7 +85,8 @@ const analyzeAndCompareBlocks = (site1, site2) => {
           hasConflict: false,
           type: 'matched',
           site1Index: site1Index,
-          site2Index: site2Index
+          site2Index: site2Index,
+          htmlComparison: htmlComparison
         });
         
         site1Index++;
@@ -152,5 +199,7 @@ module.exports = {
   analyzeAndCompareBlocks,
   generateBlockSummary,
   getUniqueClasses,
-  getBlocksByClass
+  getBlocksByClass,
+  compareHTMLBlocks,
+  formatHTML
 }; 

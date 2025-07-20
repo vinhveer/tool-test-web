@@ -65,9 +65,12 @@ const generateHTMLReport = (results) => {
     if (block.type === 'matched') {
       borderClass = 'border-green-300 bg-green-50';
       textClass = 'text-green-800';
+      const codeStatus = block.htmlComparison ? 
+        (block.htmlComparison.status === 'identical' ? 'Code ✅' : 'Code ❌') : 'No comparison';
       statusText = `
         <div class="text-xs text-green-600 mt-1">
           Merged: Live[${block.site1Index + 1}] ↔ Dev[${block.site2Index + 1}]
+          <br><span class="font-medium">${codeStatus}</span>
         </div>
       `;
     } else if (block.type === 'site1-only') {
@@ -106,6 +109,15 @@ const generateHTMLReport = (results) => {
             <div class="w-4 h-4 rounded-full ${block.site2 ? 'bg-green-500' : 'bg-gray-300'}" title="Dev Site"></div>
           </div>
         </div>
+        ${block.type === 'matched' && block.htmlComparison ? `
+          <div class="mt-2 pt-2 border-t border-gray-200">
+            <button onclick="showCodeModal(${block.displayIndex})" 
+                    class="w-full px-3 py-2 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                    title="View Code Comparison">
+              &lt;/&gt; View Code Comparison
+            </button>
+          </div>
+        ` : ''}
       </div>
     `;
   }).join('');
@@ -376,8 +388,39 @@ const generateHTMLReport = (results) => {
     <!-- Keyboard Shortcuts Hint -->
     <div class="shortcuts-hint">
         <div><strong>Controls:</strong></div>
-        <div>↑↓ Keys: Navigate | Space: Scroll both</div>
-        <div>Hold arrows: Continuous scroll</div>
+        <div>↑↓ Keys: Navigate | Enter: Toggle Code</div>
+        <div>Space: Scroll both | Esc: Close modal</div>
+    </div>
+
+    <!-- Code Comparison Modal -->
+    <div id="codeModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+        <div class="w-full h-full bg-white flex flex-col">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
+                <h2 id="modalTitle" class="text-lg font-semibold">Code Comparison</h2>
+                <button onclick="closeCodeModal()" class="text-gray-600 hover:text-gray-900 text-2xl font-bold">×</button>
+            </div>
+            
+            <!-- Modal Content -->
+            <div class="flex-1 flex">
+                <div class="w-1/2 border-r">
+                    <div class="bg-blue-50 p-2 border-b">
+                        <h3 class="font-medium text-blue-800">Live Site</h3>
+                    </div>
+                    <div class="p-4 overflow-auto" style="height: calc(100vh - 120px);">
+                        <pre id="codeLeft" class="text-xs font-mono whitespace-pre-wrap"></pre>
+                    </div>
+                </div>
+                <div class="w-1/2">
+                    <div class="bg-green-50 p-2 border-b">
+                        <h3 class="font-medium text-green-800">Dev Site</h3>
+                    </div>
+                    <div class="p-4 overflow-auto" style="height: calc(100vh - 120px);">
+                        <pre id="codeRight" class="text-xs font-mono whitespace-pre-wrap"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -531,8 +574,22 @@ const generateHTMLReport = (results) => {
             }
         }
         
-        // Keyboard Event Handlers
+        // Keyboard Event Handlers (merged with modal)
         document.addEventListener('keydown', function(e) {
+            // Close modal on Escape
+            if (e.key === 'Escape') {
+                closeCodeModal();
+                return;
+            }
+            
+            // Toggle modal on Enter
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                toggleCurrentBlockCode();
+                return;
+            }
+            
+            // Navigation keys
             switch(e.key) {
                 case 'ArrowUp':
                     e.preventDefault();
@@ -572,6 +629,75 @@ const generateHTMLReport = (results) => {
                 }
             }, 1000);
         });
+        
+        // Code Modal Functions
+        function showCodeModal(blockIndex) {
+            const block = allBlocksData[blockIndex - 1];
+            if (!block || !block.htmlComparison) return;
+            
+            const modal = document.getElementById('codeModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const codeLeft = document.getElementById('codeLeft');
+            const codeRight = document.getElementById('codeRight');
+            
+            modalTitle.textContent = 'Code Comparison - ' + block.className + ' (Block ' + blockIndex + ')';
+            
+            if (block.htmlComparison.status === 'identical') {
+                codeLeft.innerHTML = escapeHtml(block.htmlComparison.htmlA);
+                codeRight.innerHTML = escapeHtml(block.htmlComparison.htmlB);
+            } else {
+                // Show diff highlighting
+                const diff = block.htmlComparison.diff;
+                let leftHtml = '';
+                let rightHtml = '';
+                
+                diff.forEach(part => {
+                    const escapedValue = escapeHtml(part.value);
+                    
+                    if (part.added) {
+                        rightHtml += '<span style="background-color: #ccfdf7; color: #064e3b; padding: 1px 2px; border-radius: 2px;">+' + escapedValue + '</span>';
+                        leftHtml += '';
+                    } else if (part.removed) {
+                        leftHtml += '<span style="background-color: #fecaca; color: #991b1b; padding: 1px 2px; border-radius: 2px;">-' + escapedValue + '</span>';
+                        rightHtml += '';
+                    } else {
+                        leftHtml += escapedValue;
+                        rightHtml += escapedValue;
+                    }
+                });
+                
+                codeLeft.innerHTML = leftHtml;
+                codeRight.innerHTML = rightHtml;
+            }
+            
+            modal.classList.remove('hidden');
+        }
+        
+        function closeCodeModal() {
+            document.getElementById('codeModal').classList.add('hidden');
+        }
+        
+        function toggleCurrentBlockCode() {
+            const modal = document.getElementById('codeModal');
+            const isModalOpen = !modal.classList.contains('hidden');
+            
+            if (isModalOpen) {
+                // Modal đang mở -> đóng lại
+                closeCodeModal();
+            } else {
+                // Modal đang đóng -> mở modal của block hiện tại
+                const currentBlock = allBlocksData[currentBlockIndex - 1];
+                if (currentBlock && currentBlock.type === 'matched' && currentBlock.htmlComparison) {
+                    showCodeModal(currentBlock.displayIndex);
+                }
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
         
         // Debug info
         console.log('Script loaded. Site heights:', site1Height, site2Height);

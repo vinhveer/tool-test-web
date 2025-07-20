@@ -4,14 +4,14 @@ const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 
-const processWebsite = async (url, browser) => {
+const processWebsite = async (url, browser, imagesDir = null) => {
   const page = await browser.newPage();
   const uuid = uuidv4();
   
-  // Tạo thư mục images nếu chưa có
-  const imagesDir = path.join(__dirname, 'images');
-  if (!fs.existsSync(imagesDir)) {
-    fs.mkdirSync(imagesDir, { recursive: true });
+  // Sử dụng imagesDir được truyền vào hoặc default
+  const targetImagesDir = imagesDir || path.join(__dirname, 'images');
+  if (!fs.existsSync(targetImagesDir)) {
+    fs.mkdirSync(targetImagesDir, { recursive: true });
   }
 
   try {
@@ -45,27 +45,23 @@ const processWebsite = async (url, browser) => {
     await new Promise(r => setTimeout(r, 5000));
     console.log(`[${uuid}] Chờ tĩnh 5s xong`);
 
-    // Tìm tất cả div.class*="mod" và lấy thông tin vị trí
+    // Tìm tất cả div.class*="mod" và lấy thông tin vị trí + HTML content
     await page.waitForSelector('div[class*="mod"]', { timeout: 60000 });
     const modInfo = await page.evaluate(() => {
-      const divs = document.querySelectorAll('div[class*="mod"]');
-      const results = [];
-      
-      divs.forEach((div, index) => {
+      const modDivs = document.querySelectorAll('div[class*="mod"]');
+      return Array.from(modDivs).map(div => {
         const rect = div.getBoundingClientRect();
         const style = window.getComputedStyle(div);
-        results.push({
-          index: index + 1,
-          x: rect.x,
+        return {
+          x: rect.x + window.scrollX,
           y: rect.y + window.scrollY,
           width: rect.width,
           height: rect.height,
           minHeight: parseFloat(style.minHeight) || 0,
-          className: div.className
-        });
+          className: div.className,
+          htmlContent: div.outerHTML.trim()
+        };
       });
-      
-      return results;
     });
 
     console.log(`[${uuid}] Tìm thấy ${modInfo.length} khối mod`);
@@ -83,7 +79,7 @@ const processWebsite = async (url, browser) => {
 
     // Chụp full page
     const fullBuffer = await page.screenshot({ fullPage: true });
-    const imagePath = path.join(imagesDir, `${uuid}.png`);
+    const imagePath = path.join(targetImagesDir, `${uuid}.png`);
     await fs.promises.writeFile(imagePath, fullBuffer);
     console.log(`[${uuid}] ✅ Đã lưu ảnh full page: ${imagePath}`);
 
@@ -112,6 +108,9 @@ const processWebsite = async (url, browser) => {
     console.log(`[${uuid}] ✅ Hoàn thành phân tích`);
 
     return report;
+  } catch (error) {
+    console.error(`[${uuid}] Lỗi:`, error);
+    throw error;
   } finally {
     await page.close();
   }
@@ -150,4 +149,4 @@ const analyzeWebsites = async (url1, url2) => {
   }
 };
 
-module.exports = { analyzeWebsites };
+module.exports = { analyzeWebsites, processWebsite };
