@@ -251,6 +251,21 @@ const generateHTMLReport = (results) => {
             font-size: 11px;
             z-index: 100;
         }
+        
+        /* GitHub style diff highlighting */
+        .diff-added {
+            background-color: #ccfdf7;
+            color: #064e3b;
+            padding: 1px 2px;
+            border-radius: 2px;
+        }
+        
+        .diff-removed {
+            background-color: #fecaca;
+            color: #991b1b;
+            padding: 1px 2px;
+            border-radius: 2px;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -646,28 +661,9 @@ const generateHTMLReport = (results) => {
                 codeLeft.innerHTML = escapeHtml(block.htmlComparison.htmlA);
                 codeRight.innerHTML = escapeHtml(block.htmlComparison.htmlB);
             } else {
-                // Show diff highlighting
-                const diff = block.htmlComparison.diff;
-                let leftHtml = '';
-                let rightHtml = '';
-                
-                diff.forEach(part => {
-                    const escapedValue = escapeHtml(part.value);
-                    
-                    if (part.added) {
-                        rightHtml += '<span style="background-color: #ccfdf7; color: #064e3b; padding: 1px 2px; border-radius: 2px;">+' + escapedValue + '</span>';
-                        leftHtml += '';
-                    } else if (part.removed) {
-                        leftHtml += '<span style="background-color: #fecaca; color: #991b1b; padding: 1px 2px; border-radius: 2px;">-' + escapedValue + '</span>';
-                        rightHtml += '';
-                    } else {
-                        leftHtml += escapedValue;
-                        rightHtml += escapedValue;
-                    }
-                });
-                
-                codeLeft.innerHTML = leftHtml;
-                codeRight.innerHTML = rightHtml;
+                // GitHub style - Live giữ nguyên, Dev hiện thay đổi
+                codeLeft.innerHTML = block.htmlComparison.originalHtml;   // Live - không highlight
+                codeRight.innerHTML = block.htmlComparison.modifiedHtml; // Dev - có highlight
             }
             
             modal.classList.remove('hidden');

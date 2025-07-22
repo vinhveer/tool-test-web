@@ -35,8 +35,46 @@ function compareHTMLBlocks(htmlA, htmlB) {
     return { status: 'identical', htmlA: formattedA, htmlB: formattedB };
   }
   
+  // Logic diff như GitHub - Live giữ nguyên, Dev hiện thay đổi
   const diff = diffWordsWithSpace(formattedA, formattedB);
-  return { status: 'different', htmlA: formattedA, htmlB: formattedB, diff };
+  
+  // Live site - giữ nguyên (không highlight)
+  const originalHtml = formattedA
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+  
+  // Dev site - hiện thay đổi với highlight
+  let modifiedHtml = '';
+  
+  diff.forEach(part => {
+    const escapedValue = part.value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+    
+    if (part.added) {
+      // Phần được thêm vào - màu xanh lá
+      modifiedHtml += `<span class="diff-added">${escapedValue}</span>`;
+    } else if (part.removed) {
+      // Phần bị xóa - màu đỏ
+      modifiedHtml += `<span class="diff-removed">${escapedValue}</span>`;
+    } else {
+      // Phần không thay đổi
+      modifiedHtml += escapedValue;
+    }
+  });
+  
+  return { 
+    status: 'different', 
+    htmlA: formattedA, 
+    htmlB: formattedB, 
+    diff,
+    originalHtml,    // Live site - không highlight
+    modifiedHtml     // Dev site - có highlight
+  };
 }
 
 const analyzeAndCompareBlocks = (site1, site2) => {
